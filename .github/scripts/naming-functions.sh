@@ -57,8 +57,8 @@ calculate_target_tag() {
         # 处理 library namespace
         if [[ "$NAMESPACE" == "library" ]]; then
             NAMESPACE=""
-        # 去除重复 namespace (namespace 与 basename 相同)
-        elif [[ "$NAMESPACE" == "$BASE_NAME" ]]; then
+        # 去除重复 namespace (完全相同或 namespace 是 basename 的前缀)
+        elif [[ "$NAMESPACE" == "$BASE_NAME" ]] || [[ "$BASE_NAME" == "${NAMESPACE}-"* ]] || [[ "$BASE_NAME" == "${NAMESPACE}_"* ]]; then
             NAMESPACE=""
         else
             # Namespace 转下划线
