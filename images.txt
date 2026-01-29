@@ -1,3 +1,7 @@
+# redis-stack-server
+redis/redis-stack-server:7.4.0-v5 --platform=linux/arm64
+redis/redis-stack-server:7.4.0-v5
+
 # minio
 bitnami/minio:2024.6.13 --platform=linux/arm64
 bitnami/minio:2024.6.13
