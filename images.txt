@@ -1,17 +1,5 @@
-# redis-stack-server
-redis/redis-stack-server:7.4.0-v5 --platform=linux/arm64
-redis/redis-stack-server:7.4.0-v5
-
-# minio
-bitnami/minio:2024.6.13 --platform=linux/arm64
-bitnami/minio:2024.6.13
-
-# elasticsearch
-docker.elastic.co/elasticsearch/elasticsearch:7.10.2-arm64
-docker.elastic.co/elasticsearch/elasticsearch:7.10.2
-
-# qdrant
 qdrant/qdrant:v1.15.5 --platform=linux/arm64
-qdrant/qdrant:v1.14.1 --platform=linux/arm64
-qdrant/qdrant:v1.15.5
-qdrant/qdrant:v1.14.1
+redis/redis-stack-server:7.4.0-v5 --platform=linux/arm64
+docker.elastic.co/elasticsearch/elasticsearch:7.10.2-arm64
+lscr.io/linuxserver/nginx:arm64v8-1.26.2-r0-ls294
+amazoncorretto:17.0.15 --platform=linux/arm64
