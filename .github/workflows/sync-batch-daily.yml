@@ -102,6 +102,9 @@ jobs:
 
       - name: 📦 批量处理镜像
         run: |
+          # 加载智能命名函数库
+          source .github/scripts/naming-functions.sh
+
           # 定义重试函数
           function retry {
             local n=1
@@ -134,7 +137,7 @@ jobs:
             SKOPEO_ARCH="amd64"
             PLATFORM_VAL=""
             PLATFORM_ARG=""
-            
+
             # 去除首尾空白
             line=$(echo "$line" | xargs)
             # 跳过空行和注释
@@ -145,13 +148,13 @@ jobs:
 
             # 1. 提取镜像名和参数
             # ⚡ 改进：使用更健壮的正则表达式处理
-            
+
             # 提取 platform 参数值（支持 --platform=value 和 --platform value 两种格式）
             if [[ "$line" =~ --platform[=\ ]([^ ]+) ]]; then
                  PLATFORM_VAL="${BASH_REMATCH[1]}"
                  PLATFORM_ARG="--platform $PLATFORM_VAL"
                  echo "⚙️  指定架构: $PLATFORM_VAL"
-                 
+
                  # 解析 OS 和 ARCH
                  if [[ "$PLATFORM_VAL" == *"/"* ]]; then
                     SKOPEO_OS=$(echo "$PLATFORM_VAL" | cut -d'/' -f1)
@@ -160,7 +163,7 @@ jobs:
                     SKOPEO_ARCH="$PLATFORM_VAL"
                  fi
             fi
-            
+
             # ⚠️ 关键修复：确保 Skopeo 始终使用正确的架构参数
             SKOPEO_FLAGS="--override-os $SKOPEO_OS --override-arch $SKOPEO_ARCH"
 
@@ -178,54 +181,9 @@ jobs:
             # 第3步：移除剩余的无值参数 --xxx
             TEMP_LINE=$(echo "$TEMP_LINE" | sed -E 's/--[a-z-]+//g')
             SRC_IMAGE=$(echo "$TEMP_LINE" | xargs)
-            
-            # 2. 命名处理 (Smart Naming)
-            # 📄 改进：添加 registry 域名前缀以避免命名冲突
-            # Logic: quay.io/coreos/etcd -> quay-io_coreos_etcd
-            #        gcr.io/google_containers/etcd -> gcr-io_google_containers_etcd
-            #        bitnami/redis -> bitnami_redis
-            #        redis -> redis
-            
-            REGISTRY_PREFIX=""
-            SCOPE=""
-            IMAGE_PATH="$SRC_IMAGE"
-            
-            # 提取 registry 域名（如果存在）
-            # 支持带端口号的私有Registry：192.168.1.100:5000 → 192-168-1-100-5000
-            if [[ "$SRC_IMAGE" == *"."*"/"* ]] || [[ "$SRC_IMAGE" == *":"*"/"* ]]; then
-                # 包含域名，如 quay.io/coreos/etcd 或 192.168.1.100:5000/my-app
-                REGISTRY_PREFIX=$(echo "$SRC_IMAGE" | cut -d'/' -f1 | sed 's/[\.]/-/g' | sed 's/:/-/g')
-                IMAGE_PATH=$(echo "$SRC_IMAGE" | cut -d'/' -f2-)
-            fi
-            
-            BASE_NAME=$(basename "$IMAGE_PATH" | cut -d':' -f1)
-            TAG_NAME=$(echo "$IMAGE_PATH" | cut -d':' -f2 -s)
-            [ -z "$TAG_NAME" ] && TAG_NAME="latest"
-            
-            # 简单解析 namespace
-            if [[ "$IMAGE_PATH" == *"/"* ]]; then
-                NAMESPACE_PART=$(dirname "$IMAGE_PATH")
-                if [[ "$NAMESPACE_PART" != "library" && "$NAMESPACE_PART" != "." ]]; then
-                   SCOPE=$(basename "$NAMESPACE_PART")
-                fi
-            fi
-            
-            # 组合命名：[registry_][scope_]basename:tag
-            if [ -n "$REGISTRY_PREFIX" ] && [ -n "$SCOPE" ]; then
-               TARGET_TAG="${REGISTRY_PREFIX}_${SCOPE}_${BASE_NAME}:${TAG_NAME}"
-            elif [ -n "$REGISTRY_PREFIX" ]; then
-               TARGET_TAG="${REGISTRY_PREFIX}_${BASE_NAME}:${TAG_NAME}"
-            elif [ -n "$SCOPE" ]; then
-               TARGET_TAG="${SCOPE}_${BASE_NAME}:${TAG_NAME}"
-            else
-               TARGET_TAG="${BASE_NAME}:${TAG_NAME}"
-            fi
-            
-            # 多架构前缀追加
-            if [ -n "$PLATFORM_VAL" ]; then
-               PLATFORM_PREFIX=$(echo "$PLATFORM_VAL" | sed 's/\//_/g')
-               TARGET_TAG="${PLATFORM_PREFIX}_${TARGET_TAG}"
-            fi
+
+            # 2. 智能命名处理
+            TARGET_TAG=$(calculate_target_tag "$SRC_IMAGE" "$PLATFORM_VAL")
 
             # 4. 读取配置与模式判定
             # 使用之前 ENV 设置的 SYNC_MODE

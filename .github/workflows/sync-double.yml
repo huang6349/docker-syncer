@@ -128,7 +128,9 @@ jobs:
           INPUT_PLATFORM: ${{ inputs.platform }}
           INPUT_FORCE: ${{ inputs.force_sync }}
         run: |
-          # Define retry function
+          # 加载智能命名函数库
+          source .github/scripts/naming-functions.sh
+
           # Define retry function
           function retry {
             local n=1
@@ -158,7 +160,7 @@ jobs:
           if [ -n "$INPUT_PLATFORM" ]; then
             PLATFORM_ARG="--platform $INPUT_PLATFORM"
             echo "⚙️ 指定架构: $INPUT_PLATFORM"
-            
+
             # 解析 platform (例如 linux/arm64)
             if [[ "$INPUT_PLATFORM" == *"/"* ]]; then
                SKOPEO_OS=$(echo "$INPUT_PLATFORM" | awk -F'/' '{print $1}')
@@ -174,47 +176,18 @@ jobs:
 
           # --- B. 智能命名计算 ---
           if [ -n "$INPUT_TARGET" ]; then
-            BASE_TAG="$INPUT_TARGET"
+            # 用户指定目标名称：只做规范化处理
+            BASE_TAG=$(echo "$INPUT_TARGET" | tr '[:upper:]' '[:lower:]')
+            BASE_TAG="${BASE_TAG//_/-}"
+            # 追加架构后缀
+            if [ -n "$INPUT_PLATFORM" ]; then
+                ARCH_SUFFIX=$(echo "$INPUT_PLATFORM" | sed 's/.*\///')
+                BASE_TAG="${BASE_TAG%-${ARCH_SUFFIX}}"
+                BASE_TAG="${BASE_TAG}-${ARCH_SUFFIX}"
+            fi
           else
-             REGISTRY_PREFIX=""
-             SCOPE=""
-             IMAGE_PATH="$SRC_IMAGE"
-             
-             # 提取 registry 域名（如果存在）
-             # 支持带端口号的私有Registry
-             if [[ "$SRC_IMAGE" == *"."*"/"* ]] || [[ "$SRC_IMAGE" == *":"*"/"* ]]; then
-                 REGISTRY_PREFIX=$(echo "$SRC_IMAGE" | cut -d'/' -f1 | sed 's/[\.]/-/g' | sed 's/:/-/g')
-                 IMAGE_PATH=$(echo "$SRC_IMAGE" | cut -d'/' -f2-)
-             fi
-             
-             BASE_NAME=$(basename "$IMAGE_PATH" | cut -d':' -f1)
-             TAG_NAME=$(echo "$IMAGE_PATH" | cut -d':' -f2 -s)
-             [ -z "$TAG_NAME" ] && TAG_NAME="latest"
-             
-             # 解析 namespace
-             if [[ "$IMAGE_PATH" == *"/"* ]]; then
-                 NAMESPACE_PART=$(dirname "$IMAGE_PATH")
-                 if [[ "$NAMESPACE_PART" != "library" && "$NAMESPACE_PART" != "." ]]; then
-                    SCOPE=$(basename "$NAMESPACE_PART")
-                 fi
-             fi
-             
-             # 组合命名
-             if [ -n "$REGISTRY_PREFIX" ] && [ -n "$SCOPE" ]; then
-                BASE_TAG="${REGISTRY_PREFIX}_${SCOPE}_${BASE_NAME}:${TAG_NAME}"
-             elif [ -n "$REGISTRY_PREFIX" ]; then
-                BASE_TAG="${REGISTRY_PREFIX}_${BASE_NAME}:${TAG_NAME}"
-             elif [ -n "$SCOPE" ]; then
-                BASE_TAG="${SCOPE}_${BASE_NAME}:${TAG_NAME}"
-             else
-                BASE_TAG="${BASE_NAME}:${TAG_NAME}"
-             fi
-             
-             # 多架构前缀
-             if [ -n "$INPUT_PLATFORM" ]; then
-                PLAT_PREFIX=$(echo "$INPUT_PLATFORM" | sed 's/\//_/g')
-                BASE_TAG="${PLAT_PREFIX}_${BASE_TAG}"
-             fi
+            # 自动计算目标名称
+            BASE_TAG=$(calculate_target_tag "$SRC_IMAGE" "$INPUT_PLATFORM")
           fi
 
           # 构造两个目标地址

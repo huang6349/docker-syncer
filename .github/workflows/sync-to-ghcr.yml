@@ -102,7 +102,9 @@ jobs:
           INPUT_PLATFORM: ${{ inputs.platform }}
           INPUT_FORCE: ${{ inputs.force_sync }}
         run: |
-          # Define retry function
+          # 加载智能命名函数库
+          source .github/scripts/naming-functions.sh
+
           # Define retry function
           function retry {
             local n=1
@@ -133,7 +135,7 @@ jobs:
           if [ -n "$INPUT_PLATFORM" ]; then
             PLATFORM_ARG="--platform $INPUT_PLATFORM"
             echo "⚙️ 指定架构: $INPUT_PLATFORM"
-            
+
             # 解析 platform
             if [[ "$INPUT_PLATFORM" == *"/"* ]]; then
                SKOPEO_OS=$(echo "$INPUT_PLATFORM" | awk -F'/' '{print $1}')
@@ -146,56 +148,25 @@ jobs:
           # 构造 Skopeo 参数
           SKOPEO_FLAGS="--override-os $SKOPEO_OS --override-arch $SKOPEO_ARCH"
 
-          # --- 2. 目标名称计算 (智能前缀) ---
-          # 📄 改进：添加 registry 域名前缀以避免命名冲突
+          # --- 2. 目标名称计算 ---
           if [ -n "$INPUT_TARGET" ]; then
-            TARGET_TAG="$INPUT_TARGET"
+            # 用户指定目标名称：只做规范化处理
+            TARGET_TAG=$(echo "$INPUT_TARGET" | tr '[:upper:]' '[:lower:]')
+            TARGET_TAG="${TARGET_TAG//_/-}"
+            # 追加架构后缀
+            if [ -n "$INPUT_PLATFORM" ]; then
+                ARCH_SUFFIX=$(echo "$INPUT_PLATFORM" | sed 's/.*\///')
+                TARGET_TAG="${TARGET_TAG%-${ARCH_SUFFIX}}"
+                TARGET_TAG="${TARGET_TAG}-${ARCH_SUFFIX}"
+            fi
           else
-             REGISTRY_PREFIX=""
-             SCOPE=""
-             IMAGE_PATH="$SRC_IMAGE"
-             
-             # 提取 registry 域名（如果存在）
-             # 支持带端口号的私有Registry：192.168.1.100:5000 → 192-168-1-100-5000
-             if [[ "$SRC_IMAGE" == *"."*"/"* ]] || [[ "$SRC_IMAGE" == *":"*"/"* ]]; then
-                 # 包含域名，如 quay.io/coreos/etcd 或 192.168.1.100:5000/my-app
-                 REGISTRY_PREFIX=$(echo "$SRC_IMAGE" | cut -d'/' -f1 | sed 's/[\.]/-/g' | sed 's/:/-/g')
-                 IMAGE_PATH=$(echo "$SRC_IMAGE" | cut -d'/' -f2-)
-             fi
-             
-             BASE_NAME=$(basename "$IMAGE_PATH" | cut -d':' -f1)
-             TAG_NAME=$(echo "$IMAGE_PATH" | cut -d':' -f2 -s)
-             [ -z "$TAG_NAME" ] && TAG_NAME="latest"
-             
-             # 解析 namespace
-             if [[ "$IMAGE_PATH" == *"/"* ]]; then
-                 NAMESPACE_PART=$(dirname "$IMAGE_PATH")
-                 if [[ "$NAMESPACE_PART" != "library" && "$NAMESPACE_PART" != "." ]]; then
-                    SCOPE=$(basename "$NAMESPACE_PART")
-                 fi
-             fi
-             
-             # 组合命名：[registry_][scope_]basename:tag
-             if [ -n "$REGISTRY_PREFIX" ] && [ -n "$SCOPE" ]; then
-                TARGET_TAG="${REGISTRY_PREFIX}_${SCOPE}_${BASE_NAME}:${TAG_NAME}"
-             elif [ -n "$REGISTRY_PREFIX" ]; then
-                TARGET_TAG="${REGISTRY_PREFIX}_${BASE_NAME}:${TAG_NAME}"
-             elif [ -n "$SCOPE" ]; then
-                TARGET_TAG="${SCOPE}_${BASE_NAME}:${TAG_NAME}"
-             else
-                TARGET_TAG="${BASE_NAME}:${TAG_NAME}"
-             fi
-             
-             # 多架构前缀追加
-             if [ -n "$INPUT_PLATFORM" ]; then
-                PLAT_PREFIX=$(echo "$INPUT_PLATFORM" | sed 's/\//_/g')
-                TARGET_TAG="${PLAT_PREFIX}_${TARGET_TAG}"
-             fi
+            # 自动计算目标名称
+            TARGET_TAG=$(calculate_target_tag "$SRC_IMAGE" "$INPUT_PLATFORM")
           fi
 
           # --- 3. GHCR 强制转小写 ---
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          TARGET_TAG=$(echo "$TARGET_TAG" | tr '[:upper:]' '[:lower:]')
+          # TARGET_TAG 已经在 calculate_target_tag 中转为小写
           FULL_TARGET="${{ env.REGISTRY }}/$OWNER/$TARGET_TAG"
 
           echo "🎯 目标镜像地址: $FULL_TARGET"
