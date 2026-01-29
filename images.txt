@@ -4,3 +4,4 @@ docker.elastic.co/elasticsearch/elasticsearch:7.10.2-arm64
 lscr.io/linuxserver/nginx:arm64v8-1.26.2-r0-ls294
 amazoncorretto:17.0.18-alpine3.23 --platform=linux/arm64
 amazoncorretto:17.0.15 --platform=linux/arm64
+openjdk:17.0.2 --platform=linux/arm64
