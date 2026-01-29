@@ -12,8 +12,15 @@
     *   支持**磁盘清理开关**，防止 Runner 空间不足。
     *   **即下即删**：推送完一个镜像立即清理，支持大批量同步。
 4.  **智能命名策略**：
-    *   自动处理命名空间冲突（如 `bitnami/nginx` -> `bitnami_nginx`）。
-    *   自动适配 GHCR 的小写命名要求。
+    *   **Registry 前缀处理**：自动移除 `docker.io`、标准域名和带端口的 registry 前缀。
+    *   **Namespace 处理**：`library` 自动跳过，重复 namespace 自动去重，斜杠转下划线。
+    *   **名称规范化**：自动转换为小写，下划线保持不变。
+    *   **架构后缀**：指定 `--platform=linux/arm64` 时自动追加 `-arm64` 后缀。
+    *   **示例**：
+        *   `docker.io/library/redis:alpine` -> `redis:alpine`
+        *   `docker.io/bitnami/nginx:latest` -> `bitnami_nginx:latest`
+        *   `ghcr.io/home-assistant/home-assistant:stable` -> `home-assistant_home-assistant:stable`
+        *   `nginx:alpine` (arm64) -> `nginx:alpine-arm64`
 
 ---
 

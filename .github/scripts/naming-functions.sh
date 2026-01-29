@@ -7,7 +7,7 @@
 # 命名策略：
 # 1. Registry 前缀处理：移除 docker.io 和标准域名
 # 2. Namespace 转下划线：斜杠转下划线，跳过 library，去重
-# 3. 名称规范化：小写转换，下划线转连字符
+# 3. 名称规范化：小写转换
 # 4. Tag 处理：支持 @sha256 格式，默认 latest
 # 5. 架构后缀：--platform=linux/arm64 时追加 -arm64
 
@@ -87,9 +87,8 @@ calculate_target_tag() {
         BASE_TAG="${BASE_NAME}:${FINAL_TAG}"
     fi
 
-    # --- 5. 名称规范化：小写 + 下划线转连字符 ---
+    # --- 5. 名称规范化：小写 ---
     BASE_TAG=$(echo "$BASE_TAG" | tr '[:upper:]' '[:lower:]')
-    BASE_TAG="${BASE_TAG//_/-}"
 
     # --- 6. 架构后缀处理 ---
     if [ -n "$INPUT_PLATFORM" ]; then
