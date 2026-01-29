@@ -92,8 +92,8 @@ calculate_target_tag() {
 
     # --- 6. 架构后缀处理 ---
     if [ -n "$INPUT_PLATFORM" ]; then
-        # 提取架构名，如 linux/arm64 -> arm64
-        local ARCH_SUFFIX=$(echo "$INPUT_PLATFORM" | sed 's/.*\///')
+        # 提取架构名：只取 os/arch 部分，忽略 variant (如 linux/arm64/v8 -> arm64)
+        local ARCH_SUFFIX=$(echo "$INPUT_PLATFORM" | sed 's/linux\/\([a-z0-9]*\).*/\1/')
         BASE_TAG="${BASE_TAG%-${ARCH_SUFFIX}}"  # 移除已有的架构后缀（避免重复）
         BASE_TAG="${BASE_TAG}-${ARCH_SUFFIX}"
     fi

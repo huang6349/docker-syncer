@@ -16,13 +16,13 @@ docker.io/timescale/timescaledb:2.21.0-pg17
 docker.io/timescale/timescaledb:2.21.0-pg16 --platform=linux/arm64
 docker.io/timescale/timescaledb:2.21.0-pg16
 # tdengine
-docker.io/tdengine/tdengine:3.3.4.8 --platform=linux/arm64
+docker.io/tdengine/tdengine:3.3.4.8 --platform=linux/arm64/v8
 docker.io/tdengine/tdengine:3.3.4.8
 # redis
-docker.io/redis:8.0.2 --platform=linux/arm64
-docker.io/redis:6.2.14 --platform=linux/arm64
-docker.io/redis:6.0.17 --platform=linux/arm64
-docker.io/redis:6.0.10 --platform=linux/arm64
+docker.io/redis:8.0.2 --platform=linux/arm64/v8
+docker.io/redis:6.2.14 --platform=linux/arm64/v8
+docker.io/redis:6.0.17 --platform=linux/arm64/v8
+docker.io/redis:6.0.10 --platform=linux/arm64/v8
 docker.io/redis:8.0.2
 docker.io/redis:6.2.14
 docker.io/redis:6.0.17
@@ -69,15 +69,15 @@ docker.io/ollama/ollama:0.6.8 --platform=linux/arm64
 docker.io/ollama/ollama:0.6.8
 # openjdk
 docker.io/openjdk:8-jre --platform=linux/amd64
-docker.io/openjdk:8-jre --platform=linux/arm64
+docker.io/openjdk:8-jre --platform=linux/arm64/v8
 # amazoncorretto
-docker.io/amazoncorretto:17.0.15 --platform=linux/arm64
+docker.io/amazoncorretto:17.0.15 --platform=linux/arm64/v8
 docker.io/amazoncorretto:17.0.15
-docker.io/amazoncorretto:8u412 --platform=linux/arm64
+docker.io/amazoncorretto:8u412 --platform=linux/arm64/v8
 docker.io/amazoncorretto:8u412
 # tomcat
 docker.io/tomcat:9.0.90-jre8 --platform=linux/arm64
-docker.io/tomcat:9.0.10-jre8 --platform=linux/arm64
+docker.io/tomcat:9.0.10-jre8 --platform=linux/arm64/v8
 docker.io/tomcat:9.0.90-jre8
 docker.io/tomcat:9.0.10-jre8
 # nginx
