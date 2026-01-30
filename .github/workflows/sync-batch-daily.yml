@@ -110,7 +110,7 @@ jobs:
       - name: 🔍 检测新增镜像
         id: detect-new
         env:
-          PRIORITY_NEW: ${{ inputs.priority_new }}
+          PRIORITY_NEW: ${{ inputs.priority_new || 'true' }}
         run: |
           echo "🔍 参数 PRIORITY_NEW = '$PRIORITY_NEW'"
 
@@ -176,7 +176,7 @@ jobs:
           fi
 
           # 读取新增镜像列表
-          PRIORITY_NEW="${{ inputs.priority_new }}"
+          PRIORITY_NEW="${{ inputs.priority_new || 'true' }}"
           NEW_IMAGES="${{ steps.detect-new.outputs.new_images }}"
           IFS=' ' read -ra NEW_ARRAY <<< "$NEW_IMAGES"
 
