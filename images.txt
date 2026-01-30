@@ -12,12 +12,15 @@ mysql:8.0.31
 mysql:8.0.23
 # timescaledb
 timescale/timescaledb:2.21.0-pg17 --platform=linux/arm64
-timescale/timescaledb:2.21.0-pg17
 timescale/timescaledb:2.21.0-pg16 --platform=linux/arm64
+timescale/timescaledb:2.21.0-pg17
 timescale/timescaledb:2.21.0-pg16
 # tdengine
 tdengine/tdengine:3.3.4.8 --platform=linux/arm64/v8
 tdengine/tdengine:3.3.4.8
+# redis-stack-server
+redis/redis-stack-server:7.4.0-v5 --platform=linux/arm64
+redis/redis-stack-server:7.4.0-v5
 # redis
 redis:8.0.2 --platform=linux/arm64/v8
 redis:6.2.14 --platform=linux/arm64/v8
@@ -27,12 +30,9 @@ redis:8.0.2
 redis:6.2.14
 redis:6.0.17
 redis:6.0.10
-# redis-stack-server
-redis/redis-stack-server:7.4.0-v5 --platform=linux/arm64
-redis/redis-stack-server:7.4.0-v5
 # minio
-bitnami/minio:2024.6.13 --platform=linux/arm64
-bitnami/minio:2024.6.13
+public.ecr.aws/bitnami/minio:2024.6.13 --platform=linux/arm64
+public.ecr.aws/bitnami/minio:2024.6.13
 # nacos
 nacos/nacos-server:v3.0.3 --platform=linux/arm64
 nacos/nacos-server:v2.5.1 --platform=linux/arm64
@@ -57,23 +57,23 @@ docker.elastic.co/elasticsearch/elasticsearch:7.10.2-arm64
 docker.elastic.co/elasticsearch/elasticsearch:7.10.2
 # qdrant
 qdrant/qdrant:v1.15.5 --platform=linux/arm64
-qdrant/qdrant:v1.15.5
 qdrant/qdrant:v1.14.1 --platform=linux/arm64
+qdrant/qdrant:v1.15.5
 qdrant/qdrant:v1.14.1
 # ollama
 ollama/ollama:0.9.0 --platform=linux/arm64
-ollama/ollama:0.9.0
 ollama/ollama:0.7.1 --platform=linux/arm64
-ollama/ollama:0.7.1
 ollama/ollama:0.6.8 --platform=linux/arm64
+ollama/ollama:0.9.0
+ollama/ollama:0.7.1
 ollama/ollama:0.6.8
 # openjdk
-openjdk:8-jre --platform=linux/amd64
 openjdk:8-jre --platform=linux/arm64/v8
+openjdk:8-jre --platform=linux/amd64
 # amazoncorretto
 amazoncorretto:17.0.15 --platform=linux/arm64/v8
-amazoncorretto:17.0.15
 amazoncorretto:8u412 --platform=linux/arm64/v8
+amazoncorretto:17.0.15
 amazoncorretto:8u412
 # tomcat
 tomcat:9.0.90-jre8 --platform=linux/arm64
@@ -108,10 +108,11 @@ jeessy/backup-x:v2.7.2
 # volumerize
 blacklabelops/volumerize:1.7.1
 # portainer
-portainer/portainer-ce:2.33.2-alpine
+portainer/portainer-ce:2.33.2-linux-arm64-alpine
 portainer/portainer-ce:2.27.9-linux-arm64-alpine
-portainer/portainer-ce:2.27.9-alpine
 portainer/portainer-ce:linux-arm64-2.20.3-alpine
-portainer/portainer-ce:2.20.3-alpine
 portainer/portainer-ce:linux-arm64-2.20.3
+portainer/portainer-ce:2.33.2-alpine
+portainer/portainer-ce:2.27.9-alpine
+portainer/portainer-ce:2.20.3-alpine
 portainer/portainer-ce:2.20.3
