@@ -150,6 +150,13 @@ jobs:
             done
           }
 
+          # 快速检查目标是否存在
+          function target_exists {
+            local target="$1"
+            local flags="$2"
+            skopeo inspect $flags "docker://$target" >/dev/null 2>&1
+          }
+
           # --- A. 变量准备 ---
           SRC_IMAGE="$INPUT_IMAGE"
           PLATFORM_ARG=""
@@ -208,45 +215,66 @@ jobs:
 
           if [ "$INPUT_FORCE" == "false" ]; then
              echo "🔍 开始比对 Digest & Created..."
-             # 获取源信息
-             SRC_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$SRC_IMAGE" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
-             SRC_DIGEST=$(echo "$SRC_INFO" | cut -d'|' -f1)
-             SRC_CREATED=$(echo "$SRC_INFO" | cut -d'|' -f2)
-             
-             # 获取阿里云信息
-             ALI_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$ALI_TARGET" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
-             ALI_DIGEST=$(echo "$ALI_INFO" | cut -d'|' -f1)
-             ALI_CREATED=$(echo "$ALI_INFO" | cut -d'|' -f2)
-             
-             # 获取 GHCR 信息
-             GHCR_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$GHCR_TARGET" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
-             GHCR_DIGEST=$(echo "$GHCR_INFO" | cut -d'|' -f1)
-             GHCR_CREATED=$(echo "$GHCR_INFO" | cut -d'|' -f2)
 
-             echo "   源信息: $SRC_DIGEST ($SRC_CREATED)"
-             echo "   阿里云: $ALI_DIGEST ($ALI_CREATED)"
-             echo "   GHCR:   $GHCR_DIGEST ($GHCR_CREATED)"
-
-             # 判断阿里云是否需要更新
-             if [ -n "$SRC_DIGEST" ]; then
-                 if [ "$SRC_DIGEST" == "$ALI_DIGEST" ]; then
-                    echo "✅ 阿里云摘要一致，跳过。"
-                    PUSH_ALI=false
-                 elif [ -n "$ALI_DIGEST" ] && [ "$SRC_CREATED" == "$ALI_CREATED" ]; then
-                    echo "⚠️ (Aliyun) 摘要不同但创建时间一致，跳过。"
-                    PUSH_ALI=false
-                 fi
+             # 先快速检查目标是否存在
+             if ! target_exists "$ALI_TARGET" "$SKOPEO_FLAGS"; then
+               echo "🆕 [Aliyun] 目标不存在，需同步"
+               PUSH_ALI=true
+             else
+               echo "✅ [Aliyun] 目标已存在，获取摘要..."
              fi
 
-             # 判断 GHCR 是否需要更新
-             if [ -n "$SRC_DIGEST" ]; then
-                 if [ "$SRC_DIGEST" == "$GHCR_DIGEST" ]; then
-                    echo "✅ GHCR 摘要一致，跳过。"
-                    PUSH_GHCR=false
-                 elif [ -n "$GHCR_DIGEST" ] && [ "$SRC_CREATED" == "$GHCR_CREATED" ]; then
-                    echo "⚠️ (GHCR) 摘要不同但创建时间一致，跳过。"
-                    PUSH_GHCR=false
+             if ! target_exists "$GHCR_TARGET" "$SKOPEO_FLAGS"; then
+               echo "🆕 [GHCR] 目标不存在，需同步"
+               PUSH_GHCR=true
+             else
+               echo "✅ [GHCR] 目标已存在，获取摘要..."
+             fi
+
+             # 如果目标都存在，获取摘要进行比对
+             if [ "$PUSH_ALI" == "true" ] || [ "$PUSH_GHCR" == "true" ]; then
+               # 获取源信息
+               SRC_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$SRC_IMAGE" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
+               SRC_DIGEST=$(echo "$SRC_INFO" | cut -d'|' -f1)
+               SRC_CREATED=$(echo "$SRC_INFO" | cut -d'|' -f2)
+
+               if [ -z "$SRC_DIGEST" ]; then
+                   echo "⚠️ 无法获取源摘要，全部跳过。"
+                   PUSH_ALI=false
+                   PUSH_GHCR=false
+               else
+                 # 检查阿里云
+                 if [ "$PUSH_ALI" == "true" ]; then
+                   ALI_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$ALI_TARGET" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
+                   ALI_DIGEST=$(echo "$ALI_INFO" | cut -d'|' -f1)
+                   ALI_CREATED=$(echo "$ALI_INFO" | cut -d'|' -f2)
+
+                   if [ "$SRC_DIGEST" == "$ALI_DIGEST" ]; then
+                      echo "✅ [Aliyun] 摘要一致，跳过。"
+                      PUSH_ALI=false
+                   elif [ -n "$ALI_DIGEST" ] && [ "$SRC_CREATED" == "$ALI_CREATED" ]; then
+                      echo "⚠️ [Aliyun] 摘要不同但创建时间一致，跳过。"
+                      PUSH_ALI=false
+                   fi
                  fi
+
+                 # 检查 GHCR
+                 if [ "$PUSH_GHCR" == "true" ]; then
+                   GHCR_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$GHCR_TARGET" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
+                   GHCR_DIGEST=$(echo "$GHCR_INFO" | cut -d'|' -f1)
+                   GHCR_CREATED=$(echo "$GHCR_INFO" | cut -d'|' -f2)
+
+                   if [ "$SRC_DIGEST" == "$GHCR_DIGEST" ]; then
+                      echo "✅ [GHCR] 摘要一致，跳过。"
+                      PUSH_GHCR=false
+                   elif [ -n "$GHCR_DIGEST" ] && [ "$SRC_CREATED" == "$GHCR_CREATED" ]; then
+                      echo "⚠️ [GHCR] 摘要不同但创建时间一致，跳过。"
+                      PUSH_GHCR=false
+                   fi
+                 fi
+               fi
+             else
+               echo "💤 所有目标已存在且无需更新"
              fi
           else
              echo "⚠️ 强制模式，跳过比对。"

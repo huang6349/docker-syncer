@@ -124,6 +124,13 @@ jobs:
             done
           }
 
+          # 快速检查目标是否存在（避免不必要的 skopeo inspect）
+          function target_exists {
+            local target="$1"
+            local flags="$2"
+            skopeo inspect $flags "docker://$target" >/dev/null 2>&1
+          }
+
           # 1. 变量准备
           SRC_IMAGE="$INPUT_IMAGE"
           PLATFORM_ARG=""
@@ -165,28 +172,34 @@ jobs:
           # 3. 摘要比对
           NEED_SYNC=true
           if [ "$INPUT_FORCE" == "false" ]; then
-             echo "🔍 检查 Digest & Created..."
-             SRC_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$SRC_IMAGE" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
-             SRC_DIGEST=$(echo "$SRC_INFO" | cut -d'|' -f1)
-             SRC_CREATED=$(echo "$SRC_INFO" | cut -d'|' -f2)
-             
-             DEST_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$ALI_TARGET" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
-             DEST_DIGEST=$(echo "$DEST_INFO" | cut -d'|' -f1)
-             DEST_CREATED=$(echo "$DEST_INFO" | cut -d'|' -f2)
-             
-             if [ -n "$SRC_DIGEST" ]; then
-                 if [ "$SRC_DIGEST" == "$DEST_DIGEST" ]; then
-                    echo "✅ 摘要一致 ($SRC_DIGEST)，无需同步。"
-                    NEED_SYNC=false
-                 elif [ -n "$DEST_DIGEST" ] && [ "$SRC_CREATED" == "$DEST_CREATED" ]; then
-                    echo "⚠️ 摘要不同但创建时间一致 ($SRC_CREATED)，判定为同源，跳过。"
-                    NEED_SYNC=false
-                 else
-                     echo "🚀 需同步: $SRC_DIGEST vs $DEST_DIGEST"
-                 fi
+             # 先快速检查目标是否存在
+             if ! target_exists "$ALI_TARGET" "$SKOPEO_FLAGS"; then
+               echo "🆕 目标不存在，需同步"
+               NEED_SYNC=true
              else
-                 echo "⚠️ 无法获取源摘要，跳过。"
-                 NEED_SYNC=false
+               echo "🔍 目标已存在，检查 Digest & Created..."
+               SRC_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$SRC_IMAGE" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
+               SRC_DIGEST=$(echo "$SRC_INFO" | cut -d'|' -f1)
+               SRC_CREATED=$(echo "$SRC_INFO" | cut -d'|' -f2)
+
+               DEST_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$ALI_TARGET" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
+               DEST_DIGEST=$(echo "$DEST_INFO" | cut -d'|' -f1)
+               DEST_CREATED=$(echo "$DEST_INFO" | cut -d'|' -f2)
+
+               if [ -n "$SRC_DIGEST" ]; then
+                   if [ "$SRC_DIGEST" == "$DEST_DIGEST" ]; then
+                      echo "✅ 摘要一致 ($SRC_DIGEST)，无需同步。"
+                      NEED_SYNC=false
+                   elif [ -n "$DEST_DIGEST" ] && [ "$SRC_CREATED" == "$DEST_CREATED" ]; then
+                      echo "⚠️ 摘要不同但创建时间一致 ($SRC_CREATED)，判定为同源，跳过。"
+                      NEED_SYNC=false
+                   else
+                       echo "🚀 需同步: $SRC_DIGEST vs $DEST_DIGEST"
+                   fi
+               else
+                   echo "⚠️ 无法获取源摘要，跳过。"
+                   NEED_SYNC=false
+               fi
              fi
           fi
 
