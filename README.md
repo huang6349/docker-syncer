@@ -86,6 +86,9 @@ CLEAN_DISK_SPACE=true
     *   **镜像列表**：读取根目录 `images.txt`。
     *   **同步目标**：完全由 `config.env` 中的 `SYNC_MODE` 决定。
     *   **磁盘清理**：由 `config.env` 中的 `CLEAN_DISK_SPACE` 决定。
+*   **手动参数**：
+    *   **优先新增**：新增镜像优先同步，减少等待时间。
+    *   **强制同步**：跳过摘要比对，强制重新同步。
 
 **`images.txt` 示例** (更多详见 `images.example.txt`)：
 ```text
