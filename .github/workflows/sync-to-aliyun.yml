@@ -83,7 +83,7 @@ jobs:
           ALI_PASS: ${{ secrets.ALIYUN_PASSWORD }}
         run: |
           if [ -z "$ALI_USER" ] || [ -z "$ALI_PASS" ]; then
-            echo "❌ 错误: 未配置 ALIYUN_USERNAME 或 ALIYUN_PASSWORDSecrets。"
+            echo "❌ 错误: 未配置 ALIYUN_USERNAME 或 ALIYUN_PASSWORD Secrets。"
             echo "请在 Settings -> Secrets and variables -> Actions 中配置。"
             exit 1
           fi
