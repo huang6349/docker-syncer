@@ -112,30 +112,14 @@ jobs:
         env:
           PRIORITY_NEW: ${{ inputs.priority_new || 'true' }}
         run: |
-          echo "🔍 参数 PRIORITY_NEW = '$PRIORITY_NEW'"
-
           # 获取新增的行（相对于上一版本）
-          if [ "$PRIORITY_NEW" = "true" ]; then
-            if git rev-parse HEAD~1 >/dev/null 2>&1; then
-              echo "✅ 有上一版本可比较"
-              # 获取新增的非注释、非空行
-              DIFF_OUTPUT=$(git diff HEAD~1 -- images.txt)
-              echo "📋 Git diff 输出行数: $(echo "$DIFF_OUTPUT" | wc -l)"
-
-              NEW_IMAGES=$(echo "$DIFF_OUTPUT" | grep '^+' | grep -v '^+++' | grep -v '^#' | grep -v '^$' | sed 's/^+ *//' | xargs)
-
-              if [ -n "$NEW_IMAGES" ]; then
-                echo "✅ 检测到新增镜像: $NEW_IMAGES"
-              else
-                echo "ℹ️ 相比上一版本没有新增行"
-              fi
-              echo "new_images=$NEW_IMAGES" >> $GITHUB_OUTPUT
-            else
-              echo "⚠️ 没有上一版本可比较（首次运行或历史被压缩）"
-              echo "new_images=" >> $GITHUB_OUTPUT
+          if [ "$PRIORITY_NEW" = "true" ] && git rev-parse HEAD~1 >/dev/null 2>&1; then
+            NEW_IMAGES=$(git diff HEAD~1 -- images.txt | grep '^+' | grep -v '^+++' | grep -v '^#' | grep -v '^$' | sed 's/^+ *//' | xargs)
+            if [ -n "$NEW_IMAGES" ]; then
+              echo "🆕 检测到新增镜像: $NEW_IMAGES"
             fi
+            echo "new_images=$NEW_IMAGES" >> $GITHUB_OUTPUT
           else
-            echo "ℹ️ PRIORITY_NEW 未启用，跳过新增检测"
             echo "new_images=" >> $GITHUB_OUTPUT
           fi
 
