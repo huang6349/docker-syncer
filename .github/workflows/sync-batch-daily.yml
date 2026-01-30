@@ -8,6 +8,11 @@ on:
     - cron: "0 0 1,20 * *"
   workflow_dispatch:
     inputs:
+      priority_new:
+        description: "优先新增 (新增优先同步)"
+        required: false
+        type: boolean
+        default: true
       force_sync:
         description: "强制同步 (跳过摘要比对)"
         required: false
@@ -100,6 +105,21 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
         continue-on-error: true
 
+      - name: 🔍 检测新增镜像
+        id: detect-new
+        env:
+          PRIORITY_NEW: ${{ inputs.priority_new }}
+        run: |
+          # 获取新增的行（相对于上一版本）
+          if [ "$PRIORITY_NEW" == "true" ] && git rev-parse HEAD~1 >/dev/null 2>&1; then
+            # 获取新增的非注释、非空行
+            NEW_IMAGES=$(git diff HEAD~1 -- images.txt | grep '^+' | grep -v '^+++' | grep -v '^#' | grep -v '^$' | sed 's/^+//' | xargs)
+            echo "new_images=$NEW_IMAGES" >> $GITHUB_OUTPUT
+            echo "检测到新增镜像: $NEW_IMAGES"
+          else
+            echo "new_images=" >> $GITHUB_OUTPUT
+          fi
+
       - name: 📦 批量处理镜像
         run: |
           # 加载智能命名函数库
@@ -124,38 +144,69 @@ jobs:
             done
           }
 
+          # 快速检查目标是否存在（避免不必要的 skopeo inspect）
+          function target_exists {
+            local target="$1"
+            local flags="$2"
+            skopeo inspect $flags "docker://$target" >/dev/null 2>&1
+          }
+
           if [ ! -s "images.txt" ]; then
             echo "⚠️ images.txt 不存在或为空。"
             exit 0
           fi
 
-          echo "📋 开始批量处理..."
+          # 读取新增镜像列表
+          PRIORITY_NEW="${{ inputs.priority_new }}"
+          NEW_IMAGES="${{ steps.detect-new.outputs.new_images }}"
+          IFS=' ' read -ra NEW_ARRAY <<< "$NEW_IMAGES"
 
+          # 创建临时文件存储需优先处理的镜像
+          PRIORITY_FILE=$(mktemp)
+          NORMAL_FILE=$(mktemp)
+
+          # 分离新增镜像和已有镜像
           while IFS= read -r line || [ -n "$line" ]; do
-            # 🛑 关键修复：在每次循环开始时重置所有变量，防止状态泄露
-            SKOPEO_OS="linux"
-            SKOPEO_ARCH="amd64"
-            PLATFORM_VAL=""
-            PLATFORM_ARG=""
+            SKIP=false
+            if [ "$PRIORITY_NEW" == "true" ]; then
+              for new_img in "${NEW_ARRAY[@]}"; do
+                # 去除参数后比较镜像名
+                clean_new=$(echo "$new_img" | sed -E 's/--[a-z-]+=[^ ]+//g' | sed -E 's/--[a-z-]+ +[^ ]+//g' | sed -E 's/--[a-z-]+//g' | xargs)
+                clean_line=$(echo "$line" | sed -E 's/--[a-z-]+=[^ ]+//g' | sed -E 's/--[a-z-]+ +[^ ]+//g' | sed -E 's/--[a-z-]+//g' | xargs)
+                if [ "$clean_new" == "$clean_line" ]; then
+                  echo "$line" >> "$PRIORITY_FILE"
+                  SKIP=true
+                  break
+                fi
+              done
+            fi
+            if [ "$SKIP" != "true" ]; then
+              echo "$line" >> "$NORMAL_FILE"
+            fi
+          done < images.txt
+
+          # 处理函数
+          process_image() {
+            local line="$1"
+            local SKOPEO_OS="linux"
+            local SKOPEO_ARCH="amd64"
+            local PLATFORM_VAL=""
+            local PLATFORM_ARG=""
 
             # 去除首尾空白
             line=$(echo "$line" | xargs)
             # 跳过空行和注释
-            [[ -z "$line" || "$line" =~ ^# ]] && continue
+            [[ -z "$line" || "$line" =~ ^# ]] && return
 
             echo "----------------------------------------"
             echo "🔄 处理指令: $line"
 
-            # 1. 提取镜像名和参数
-            # ⚡ 改进：使用更健壮的正则表达式处理
-
-            # 提取 platform 参数值（支持 --platform=value 和 --platform value 两种格式）
+            # 提取 platform 参数值
             if [[ "$line" =~ --platform[=\ ]([^ ]+) ]]; then
                  PLATFORM_VAL="${BASH_REMATCH[1]}"
                  PLATFORM_ARG="--platform $PLATFORM_VAL"
                  echo "⚙️  指定架构: $PLATFORM_VAL"
 
-                 # 解析 OS 和 ARCH
                  if [[ "$PLATFORM_VAL" == *"/"* ]]; then
                     SKOPEO_OS=$(echo "$PLATFORM_VAL" | cut -d'/' -f1)
                     SKOPEO_ARCH=$(echo "$PLATFORM_VAL" | cut -d'/' -f2)
@@ -164,115 +215,98 @@ jobs:
                  fi
             fi
 
-            # ⚠️ 关键修复：确保 Skopeo 始终使用正确的架构参数
             SKOPEO_FLAGS="--override-os $SKOPEO_OS --override-arch $SKOPEO_ARCH"
 
-            # ⚡ 改进：更健壮地提取镜像名（移除所有 --开头的参数）
-            # 支持三种参数格式：
-            # 1. 带值参数（=格式）：--platform=linux/arm64
-            # 2. 带值参数（空格格式）：--platform linux/arm64
-            # 3. 无值参数（布尔标志）：--disable-content-trust --pull-always
-            # 使用多次 sed 确保彻底清理所有参数格式
+            # 提取镜像名
             TEMP_LINE="$line"
-            # 第1步：移除 --xxx=value 格式
             TEMP_LINE=$(echo "$TEMP_LINE" | sed -E 's/--[a-z-]+=[^ ]+//g')
-            # 第2步：移除 --xxx value 格式（注意保留镜像名）
             TEMP_LINE=$(echo "$TEMP_LINE" | sed -E 's/--[a-z-]+ +[^ ]+//g')
-            # 第3步：移除剩余的无值参数 --xxx
             TEMP_LINE=$(echo "$TEMP_LINE" | sed -E 's/--[a-z-]+//g')
-            SRC_IMAGE=$(echo "$TEMP_LINE" | xargs)
+            local SRC_IMAGE=$(echo "$TEMP_LINE" | xargs)
 
-            # 2. 智能命名处理
-            TARGET_TAG=$(calculate_target_tag "$SRC_IMAGE" "$PLATFORM_VAL")
+            # 智能命名处理
+            local TARGET_TAG=$(calculate_target_tag "$SRC_IMAGE" "$PLATFORM_VAL")
+            local MODE="${SYNC_MODE:-none}"
 
-            # 4. 读取配置与模式判定
-            # 使用之前 ENV 设置的 SYNC_MODE
-            MODE="${SYNC_MODE:-none}"
-            
-            echo "Current Sync Mode: $MODE"
-            
             if [ "$MODE" == "none" ]; then
-                echo "🛑 同步模式为 none，跳过所有操作。"
-                continue
+                echo "🛑 同步模式为 none，跳过。"
+                return
             fi
 
-            ALI_TARGET="$ALIYUN_REGISTRY/$ALIYUN_NAMESPACE/$TARGET_TAG"
-            
-            # GHCR Target (Lowercase)
-            OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-            TAG_LOWER=$(echo "$TARGET_TAG" | tr '[:upper:]' '[:lower:]')
-            GHCR_TARGET="$GHCR_REGISTRY/$OWNER_LOWER/$TAG_LOWER"
+            local ALI_TARGET="$ALIYUN_REGISTRY/$ALIYUN_NAMESPACE/$TARGET_TAG"
+            local OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+            local TAG_LOWER=$(echo "$TARGET_TAG" | tr '[:upper:]' '[:lower:]')
+            local GHCR_TARGET="$GHCR_REGISTRY/$OWNER_LOWER/$TAG_LOWER"
 
-            # 5. 摘要比对 (三方)
-            FORCE="${{ inputs.force_sync }}"
-            PUSH_ALI=false
-            PUSH_GHCR=false
-            NEED_PULL=false
-            
-            # 初始化目标标记
-            CHECK_ALI=false
-            CHECK_GHCR=false
-            
+            local FORCE="${{ inputs.force_sync }}"
+            local PUSH_ALI=false
+            local PUSH_GHCR=false
+            local NEED_PULL=false
+            local CHECK_ALI=false
+            local CHECK_GHCR=false
+
             case "$MODE" in
-                aliyun)
-                    CHECK_ALI=true
-                    ;;
-                ghcr)
-                    CHECK_GHCR=true
-                    ;;
-                double)
-                    CHECK_ALI=true
-                    CHECK_GHCR=true
-                    ;;
-                *)
-                    echo "⚠️ 未知模式 $MODE，默认跳过。"
-                    continue
-                    ;;
+                aliyun) CHECK_ALI=true ;;
+                ghcr) CHECK_GHCR=true ;;
+                double) CHECK_ALI=true; CHECK_GHCR=true ;;
+                *) echo "⚠️ 未知模式 $MODE"; return ;;
             esac
 
+            # 快速跳过：检查目标是否存在
             if [ "$FORCE" != "true" ]; then
-               echo "🔍 比对 Digest & Created ($SKOPEO_ARCH) [Mode: $MODE]..."
-               
-               # 源信息
-               SRC_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$SRC_IMAGE" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
-               SRC_DIGEST=$(echo "$SRC_INFO" | cut -d'|' -f1)
-               SRC_CREATED=$(echo "$SRC_INFO" | cut -d'|' -f2)
-               
-               if [ -z "$SRC_DIGEST" ]; then
-                   echo "⚠️ 无法获取源镜像信息，跳过。"
-                   continue
-               fi
+               local SKIP_ALL=false
 
-               # 1. Check Aliyun
                if [ "$CHECK_ALI" == "true" ]; then
-                   ALI_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$ALI_TARGET" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
-                   ALI_DIGEST=$(echo "$ALI_INFO" | cut -d'|' -f1)
-                   ALI_CREATED=$(echo "$ALI_INFO" | cut -d'|' -f2)
-                   
-                   if [ "$SRC_DIGEST" == "$ALI_DIGEST" ]; then
-                       echo "✅ [Aliyun] 摘要一致，跳过。"
-                   elif [ -n "$ALI_DIGEST" ] && [ "$SRC_CREATED" == "$ALI_CREATED" ]; then
-                       echo "⚠️ [Aliyun] 摘要不同但创建时间一致，判定为同源，跳过。"
-                   else
-                       echo "🚀 [Aliyun] 需更新"
-                       PUSH_ALI=true
-                   fi
+                 if ! target_exists "$ALI_TARGET" "$SKOPEO_FLAGS"; then
+                   echo "🆕 [Aliyun] 目标不存在，需同步"
+                   PUSH_ALI=true
+                 else
+                   echo "✅ [Aliyun] 已存在"
+                 fi
                fi
 
-               # 2. Check GHCR
                if [ "$CHECK_GHCR" == "true" ]; then
-                   GHCR_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$GHCR_TARGET" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
-                   GHCR_DIGEST=$(echo "$GHCR_INFO" | cut -d'|' -f1)
-                   GHCR_CREATED=$(echo "$GHCR_INFO" | cut -d'|' -f2)
+                 if ! target_exists "$GHCR_TARGET" "$SKOPEO_FLAGS"; then
+                   echo "🆕 [GHCR] 目标不存在，需同步"
+                   PUSH_GHCR=true
+                 else
+                   echo "✅ [GHCR] 已存在"
+                 fi
+               fi
 
-                   if [ "$SRC_DIGEST" == "$GHCR_DIGEST" ]; then
-                       echo "✅ [GHCR] 摘要一致，跳过。"
-                   elif [ -n "$GHCR_DIGEST" ] && [ "$SRC_CREATED" == "$GHCR_CREATED" ]; then
-                       echo "⚠️ [GHCR] 摘要不同但创建时间一致，判定为同源，跳过。"
-                   else
-                       echo "🚀 [GHCR] 需更新"
-                       PUSH_GHCR=true
+               # 如果目标都存在，进行摘要比对确认是否真的需要更新
+               if [ "$PUSH_ALI" != "true" ] && [ "$PUSH_GHCR" != "true" ]; then
+                 echo "🔍 所有目标已存在，进行摘要比对..."
+                 local SRC_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$SRC_IMAGE" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
+                 local SRC_DIGEST=$(echo "$SRC_INFO" | cut -d'|' -f1)
+                 local SRC_CREATED=$(echo "$SRC_INFO" | cut -d'|' -f2)
+
+                 if [ -z "$SRC_DIGEST" ]; then
+                     echo "⚠️ 无法获取源镜像信息，跳过。"
+                     return
+                 fi
+
+                 if [ "$CHECK_ALI" == "true" ]; then
+                   local ALI_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$ALI_TARGET" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
+                   local ALI_DIGEST=$(echo "$ALI_INFO" | cut -d'|' -f1)
+                   local ALI_CREATED=$(echo "$ALI_INFO" | cut -d'|' -f2)
+
+                   if [ "$SRC_DIGEST" != "$ALI_DIGEST" ] && ! ([ -n "$ALI_DIGEST" ] && [ "$SRC_CREATED" == "$ALI_CREATED" ]); then
+                     echo "🚀 [Aliyun] 需更新"
+                     PUSH_ALI=true
                    fi
+                 fi
+
+                 if [ "$CHECK_GHCR" == "true" ]; then
+                   local GHCR_INFO=$(retry skopeo inspect $SKOPEO_FLAGS "docker://$GHCR_TARGET" --format='{{.Digest}}|{{.Created}}' 2>/dev/null || echo "")
+                   local GHCR_DIGEST=$(echo "$GHCR_INFO" | cut -d'|' -f1)
+                   local GHCR_CREATED=$(echo "$GHCR_INFO" | cut -d'|' -f2)
+
+                   if [ "$SRC_DIGEST" != "$GHCR_DIGEST" ] && ! ([ -n "$GHCR_DIGEST" ] && [ "$SRC_CREATED" == "$GHCR_CREATED" ]); then
+                     echo "🚀 [GHCR] 需更新"
+                     PUSH_GHCR=true
+                   fi
+                 fi
                fi
             else
                echo "⚠️ 强制模式，跳过比对。"
@@ -280,43 +314,59 @@ jobs:
                [ "$CHECK_GHCR" == "true" ] && PUSH_GHCR=true
             fi
 
-            # 汇总拉取需求
             if [ "$PUSH_ALI" == "true" ] || [ "$PUSH_GHCR" == "true" ]; then
                 NEED_PULL=true
             fi
 
-            # 6. 执行同步
+            # 执行同步
             if [ "$NEED_PULL" == "true" ]; then
                echo "📥 拉取 $SRC_IMAGE ..."
                retry docker pull "$SRC_IMAGE" $PLATFORM_ARG
-               
-               # 推送 Aliyun
+
                if [ "$PUSH_ALI" == "true" ]; then
                    echo "🏷️ -> 阿里云 $ALI_TARGET"
                    docker tag "$SRC_IMAGE" "$ALI_TARGET"
                    retry docker push "$ALI_TARGET"
                    docker rmi "$ALI_TARGET" >/dev/null 2>&1 || true
                fi
-               
-               # 推送 GHCR
+
                if [ "$PUSH_GHCR" == "true" ]; then
                    echo "🏷️ -> GHCR $GHCR_TARGET"
                    docker tag "$SRC_IMAGE" "$GHCR_TARGET"
                    retry docker push "$GHCR_TARGET"
                    docker rmi "$GHCR_TARGET" >/dev/null 2>&1 || true
                fi
-               
+
                echo "🧹 清理源镜像..."
                docker rmi "$SRC_IMAGE" >/dev/null 2>&1 || true
             else
                echo "💤 无需更新。"
             fi
-            
-            # 简单监控
+
             echo "磁盘空间:"
             df -h | grep "/var/lib/docker" | awk '{print $4 " available"}' || true
+          }
 
-          done < images.txt
+          # 优先处理新增镜像
+          if [ -s "$PRIORITY_FILE" ]; then
+            echo ""
+            echo "🚀 ================== 优先处理新增镜像 =================="
+            while IFS= read -r line || [ -n "$line" ]; do
+              process_image "$line"
+            done < "$PRIORITY_FILE"
+          fi
+
+          # 处理剩余镜像
+          if [ -s "$NORMAL_FILE" ]; then
+            echo ""
+            echo "📦 ================== 处理已有镜像 =================="
+            while IFS= read -r line || [ -n "$line" ]; do
+              process_image "$line"
+            done < "$NORMAL_FILE"
+          fi
+
+          # 清理临时文件
+          rm -f "$PRIORITY_FILE" "$NORMAL_FILE"
 
       - name: 更新 README Badge
         run: |
