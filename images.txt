@@ -31,8 +31,8 @@ redis:6.2.14
 redis:6.0.17
 redis:6.0.10
 # minio
-public.ecr.aws/bitnami/minio:2024.6.13 --platform=linux/arm64
-public.ecr.aws/bitnami/minio:2024.6.13
+bitnamilegacy/minio:2024.6.13 --platform=linux/arm64
+bitnamilegacy/minio:2024.6.13
 # nacos
 nacos/nacos-server:v3.0.3 --platform=linux/arm64
 nacos/nacos-server:v2.5.1 --platform=linux/arm64
