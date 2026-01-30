@@ -67,9 +67,6 @@ ollama/ollama:0.6.8 --platform=linux/arm64
 ollama/ollama:0.9.0
 ollama/ollama:0.7.1
 ollama/ollama:0.6.8
-# openjdk
-openjdk:8-jre --platform=linux/arm64/v8
-openjdk:8-jre --platform=linux/amd64
 # amazoncorretto
 amazoncorretto:17.0.15 --platform=linux/arm64/v8
 amazoncorretto:8u412 --platform=linux/arm64/v8
