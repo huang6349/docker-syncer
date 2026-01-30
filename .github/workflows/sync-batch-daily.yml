@@ -37,6 +37,8 @@ jobs:
       # 🔥 关键修复：必须先 Checkout 代码，才能读取 config.env
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # 至少获取2个commit以支持HEAD~1比较
       # 🔧 Skopeo 依赖检查
       - name: 检查和安装 Skopeo
         run: |
