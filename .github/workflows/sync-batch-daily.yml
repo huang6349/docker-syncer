@@ -257,7 +257,7 @@ jobs:
             local TAG_LOWER=$(echo "$TARGET_TAG" | tr '[:upper:]' '[:lower:]')
             local GHCR_TARGET="$GHCR_REGISTRY/$OWNER_LOWER/$TAG_LOWER"
 
-            local FORCE="${{ inputs.force_sync }}"
+            local FORCE="${{ inputs.force_sync || 'false' }}"
             local PUSH_ALI=false
             local PUSH_GHCR=false
             local NEED_PULL=false
