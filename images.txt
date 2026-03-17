@@ -104,17 +104,13 @@ jeessy/backup-x:v2.8.3
 jeessy/backup-x:v2.7.2
 # volumerize
 blacklabelops/volumerize:1.7.1
-# portainer
-portainer/portainer-ce:2.33.2-linux-arm64-alpine
-portainer/portainer-ce:2.27.9-linux-arm64-alpine
-portainer/portainer-ce:linux-arm64-2.20.3-alpine
-portainer/portainer-ce:linux-arm64-2.20.3
-portainer/portainer-ce:2.33.2-alpine
-portainer/portainer-ce:2.27.9-alpine
-portainer/portainer-ce:2.20.3-alpine
-portainer/portainer-ce:2.20.3
 # openclaw
 justlikemaki/openclaw-docker-cn-im:2026.2.3-1 --platform=linux/arm64
 justlikemaki/openclaw-docker-cn-im:2026.2.3-1
 justlikemaki/openclaw-docker-cn-im:2026.3.13 --platform=linux/arm64
 justlikemaki/openclaw-docker-cn-im:2026.3.13
+# dpanel
+dpanel/dpanel:1.9.3.1-lite-debian --platform=linux/arm64
+dpanel/dpanel:1.9.3.1-lite-debian
+dpanel/dpanel:1.9.3.1-lite --platform=linux/arm64
+dpanel/dpanel:1.9.3.1-lite
