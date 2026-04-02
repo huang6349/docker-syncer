@@ -111,6 +111,8 @@ justlikemaki/openclaw-docker-cn-im:2026.3.13 --platform=linux/arm64
 justlikemaki/openclaw-docker-cn-im:2026.3.13
 justlikemaki/openclaw-docker-cn-im:2026.3.23-2 --platform=linux/arm64
 justlikemaki/openclaw-docker-cn-im:2026.3.23-2
+justlikemaki/openclaw-docker-cn-im:2026.4.1 --platform=linux/arm64
+justlikemaki/openclaw-docker-cn-im:2026.4.1
 # dpanel
 dpanel/dpanel:1.9.3.1-lite-debian --platform=linux/arm64
 dpanel/dpanel:1.9.3.1-lite-debian
