@@ -121,6 +121,13 @@ justlikemaki/openclaw-docker-cn-im:2026.3.28-f1 --platform=linux/arm64
 justlikemaki/openclaw-docker-cn-im:2026.3.28-f1
 justlikemaki/openclaw-docker-cn-im:2026.4.1 --platform=linux/arm64
 justlikemaki/openclaw-docker-cn-im:2026.4.1
+# portainer-ce
+portainer/portainer-ce:2.41.1-alpine --platform=linux/arm64
+portainer/portainer-ce:2.41.1-alpine
+portainer/portainer-ce:2.39.2-alpine --platform=linux/arm64
+portainer/portainer-ce:2.39.2-alpine
+portainer/portainer-ce:2.27.9-alpine --platform=linux/arm64
+portainer/portainer-ce:2.27.9-alpine
 # dpanel
 dpanel/dpanel:1.9.3.1-lite-debian --platform=linux/arm64
 dpanel/dpanel:1.9.3.1-lite-debian
