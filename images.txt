@@ -126,3 +126,8 @@ dpanel/dpanel:1.9.3.1-lite-debian --platform=linux/arm64
 dpanel/dpanel:1.9.3.1-lite-debian
 dpanel/dpanel:1.9.3.1-lite --platform=linux/arm64
 dpanel/dpanel:1.9.3.1-lite
+# monibuca
+langhuihui/monibuca:v6 --platform=linux/arm64
+langhuihui/monibuca:v6
+langhuihui/monibuca:5.1.6 --platform=linux/arm64
+langhuihui/monibuca:5.1.6
