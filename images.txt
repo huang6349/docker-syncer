@@ -85,7 +85,8 @@ tomcat:9.0.10-jre8
 lscr.io/linuxserver/nginx:arm64v8-1.26.2-r0-ls294
 lscr.io/linuxserver/nginx:1.26.2-r0-ls294
 # swag
-lscr.io/linuxserver/swag:2.6.0-ls234
+lscr.io/linuxserver/swag:arm64v8-5.6.0-ls463
+lscr.io/linuxserver/swag:5.6.0-ls463
 # vectorex
 javpower/vectorex-server:v1.0.0
 # adminer
