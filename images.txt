@@ -144,3 +144,6 @@ zlmediakit/zlmediakit:master_py --platform=linux/arm64
 zlmediakit/zlmediakit:master_py
 zlmediakit/zlmediakit:master --platform=linux/arm64
 zlmediakit/zlmediakit:master
+# gowvp
+gospace/gowvp:latest --platform=linux/arm64
+gospace/gowvp:latest
