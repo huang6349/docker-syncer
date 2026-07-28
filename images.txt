@@ -147,3 +147,5 @@ zlmediakit/zlmediakit:master
 # gowvp
 gospace/gowvp:latest --platform=linux/arm64
 gospace/gowvp:latest
+# folkmq
+noearorg/folkmq-broker:1.7.13
