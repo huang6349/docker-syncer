@@ -30,6 +30,11 @@ tdengine/tsdb:3.4.1.13 --platform=linux/arm64/v8
 tdengine/tsdb:3.4.1.13
 tdengine/tsdb:3.3.8.8 --platform=linux/arm64/v8
 tdengine/tsdb:3.3.8.8
+# questdb
+questdb/questdb:10.0.0 --platform=linux/arm64
+questdb/questdb:10.0.0
+questdb/questdb:9.4.3 --platform=linux/arm64
+questdb/questdb:9.4.3
 # redis-stack-server
 redis/redis-stack-server:7.4.0-v5 --platform=linux/arm64
 redis/redis-stack-server:7.4.0-v5
