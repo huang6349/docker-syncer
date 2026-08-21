@@ -89,6 +89,8 @@ amazoncorretto:17.0.15 --platform=linux/arm64/v8
 amazoncorretto:8u412 --platform=linux/arm64/v8
 amazoncorretto:17.0.15
 amazoncorretto:8u412
+# openjdk
+openjdk:8u282
 # tomcat
 tomcat:9.0.90-jre8 --platform=linux/arm64
 tomcat:9.0.10-jre8 --platform=linux/arm64/v8
@@ -162,3 +164,5 @@ gospace/gowvp:latest --platform=linux/arm64
 gospace/gowvp:latest
 # folkmq
 noearorg/folkmq-broker:1.7.13
+# volumerize
+blacklabelops/volumerize:1.7.1
