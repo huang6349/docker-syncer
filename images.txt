@@ -117,6 +117,11 @@ zhayujie/chatgpt-on-wechat:1.6.7
 zhayujie/chatgpt-on-wechat:1.7.4
 # spug
 openspug/spug-service:latest
+# gitea
+gitea/gitea:1.27.3 --platform=linux/arm64
+gitea/gitea:1.27.3
+gitea/gitea:1.26.4 --platform=linux/arm64
+gitea/gitea:1.26.4
 # gogs
 gogs/gogs:0.13
 gogs/gogs:0.12.3
